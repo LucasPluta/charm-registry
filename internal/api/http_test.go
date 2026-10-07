@@ -3,7 +3,6 @@ package api
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -1521,8 +1520,7 @@ func newTestHandler(t *testing.T, cfg config.Config) http.Handler {
 	t.Helper()
 
 	repository := repo.NewMemory()
-	authenticator, err := auth.New(context.Background(), cfg, repository)
-	require.NoError(t, err)
+	authenticator := auth.New(cfg, repository)
 
 	svc := service.New(cfg, repository, blob.NewMemoryStore())
 	return New(cfg, svc, authenticator)

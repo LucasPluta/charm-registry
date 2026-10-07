@@ -105,6 +105,7 @@ func (s *Service) ListReleases(ctx context.Context, identity core.Identity, char
 			"bases":      revision.Bases,
 			"created-at": revision.CreatedAt,
 			"created-by": revision.CreatedBy,
+			"errors":     []any{},
 			"revision":   revision.Revision,
 			"sha3-384":   revision.SHA384,
 			"size":       revision.Size,

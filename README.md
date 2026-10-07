@@ -1,97 +1,46 @@
-# Private Charm Registry MVP
+# Mock Charm Registry
 
-This repository contains a Go-based private charm registry that implements the Charmhub API subset needed by stock `juju` and stock `charmcraft`, without patching either client. The service is API-first, stores metadata in Postgres, stores artifacts in S3-compatible object storage, and treats OCI image delivery as an external registry dependency.
+A single Go binary that speaks the Charmhub API subset needed by stock `charmcraft` and stock `juju`. All state is in memory and discarded when the process exits.
 
-## What is implemented
-
-- Juju-facing consumer APIs:
-  - `GET /v2/charms/find`
-  - `GET /v2/charms/info/{name}`
-  - `POST /v2/charms/refresh`
-  - artifact download endpoints under `/api/v1/...`
-- Charmcraft-facing publisher APIs:
-  - `/v1/tokens*`
-  - `/v1/whoami`
-  - `/v1/charm...` registration, metadata, revisions, resources, releases, and tracks
-  - `POST /unscanned-upload/`
-- OIDC-compatible identity ingestion plus opaque store-token issuance
-- Private-by-default packages with owner and group-based access checks
-- S3-backed charm/resource blobs and OCI registry credential/blob helpers
-
-## Architecture
-
-- `cmd/charm-registry`: process entrypoint
-- `internal/api`: HTTP router, response shaping, OpenAPI stub
-- `internal/service`: Charmhub-compatible business logic
-- `internal/repo`: Postgres and in-memory repositories
-- `internal/blob`: S3-compatible blob store
-- `internal/auth`: OIDC and store-token authentication
-- `internal/charm`: charm archive parsing
-
-## Local development
-
-Bring up the full dev stack:
+## Run it
 
 ```bash
-docker compose up --build
+make build
+./.bin/charm-registry &
 ```
 
-The compose stack includes:
-
-- Postgres
-- MinIO for S3-compatible storage
-- Docker Distribution as the OCI registry
-- The charm registry service
-
-The API is exposed at [http://localhost:8080](http://localhost:8080), MinIO at [http://localhost:9001](http://localhost:9001), and the OCI registry at [https://localhost:5000](https://localhost:5000) (TLS, self-signed).
-
-On first run, `docker compose up` generates a local CA and a TLS certificate for the OCI registry and writes them to `./certs/`. Install the CA once so that skopeo and other container tools trust the registry:
+Or without building:
 
 ```bash
-make install-cert   # requires sudo; supports Ubuntu/Debian and Fedora/RHEL
+make run
 ```
 
-For local-only auth you can use insecure development bearer tokens:
+The API listens on [http://localhost:18080](http://localhost:18080).
+
+## Point the clients at it
+
+```bash
+export CHARMCRAFT_STORE_API_URL=http://localhost:18080
+export CHARMCRAFT_UPLOAD_URL=http://localhost:18080
+export CHARMCRAFT_REGISTRY_URL=http://localhost:18080
+
+juju bootstrap localhost dev --config charmhub-url=http://localhost:18080
+```
+
+For local-only auth, use an insecure development bearer token:
 
 ```text
 Authorization: Bearer dev:alice:alice
 ```
 
-## Useful commands
+## End-to-end demo
+
+[demo.sh](demo.sh) starts the registry, builds a bogus charm, pushes it with `charmcraft`, and deploys it with `juju`:
 
 ```bash
-make help
-make fmt
-make vet
-make lint
-make test
-make test-race
-make tidy
-make vuln
-make gosec
-make audit
-make up
-make down
+./demo.sh
 ```
 
 ## Configuration
 
-See [.env.example](/Users/gschiano/charm-registry/.env.example) for the supported environment variables. The only strictly required variable outside the compose stack is `CHARM_REGISTRY_DATABASE_URL`.
-
-## Current limitations
-
-- The MVP does not include a browse UI, charm libraries, bundles-specific extras, analytics, or collaborator management UX.
-- Token attenuation and revocation are implemented in the registry, but the external OCI registry is still an off-the-shelf dependency.
-- Group ACL data model exists, but there are no dedicated admin endpoints for group management yet.
-- Stock `juju` can target an alternate Charmhub URL, but private package auth support is still the main compatibility risk to validate end-to-end in your environment. If Juju does not forward auth for consumer requests, private deployments may need network-level access controls in front of the registry.
-
-## Quality gates
-
-The repository now carries a Juju-inspired Go hygiene baseline:
-
-- `.golangci.yml` with curated linters instead of enabling everything blindly
-- `tools.go` to pin lint and security tooling in-module
-- `make lint`, `make vuln`, and `make gosec` for repeatable local checks
-- explicit HTTP timeouts, body-size limits, and basic security headers
-
-I intentionally did not raise the language floor aggressively just to satisfy the scanners. Instead, the module now keeps a conservative `go` directive while pinning a patched preferred toolchain, which improves security posture without forcing the same compatibility jump on every downstream integration.
+See [.env.example](.env.example). Every variable has a default, so the binary runs with no configuration at all.

@@ -5,35 +5,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestLoadRequiresDatabaseURL(t *testing.T) {
-	t.Setenv("CHARM_REGISTRY_DATABASE_URL", "")
-
-	_, err := Load()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "CHARM_REGISTRY_DATABASE_URL is required")
-}
-
 func TestLoadDefaults(t *testing.T) {
-	t.Setenv("CHARM_REGISTRY_DATABASE_URL", "postgres://localhost/test")
+	cfg := Load()
 
-	cfg, err := Load()
-
-	require.NoError(t, err)
-	assert.Equal(t, ":8080", cfg.ListenAddress)
-	assert.Equal(t, "http://localhost:8080", cfg.PublicAPIURL)
-	assert.Equal(t, "http://localhost:8080", cfg.PublicStorageURL)
+	assert.Equal(t, ":18080", cfg.ListenAddress)
+	assert.Equal(t, "http://localhost:18080", cfg.PublicAPIURL)
+	assert.Equal(t, "http://localhost:18080", cfg.PublicStorageURL)
 	assert.Equal(t, "http://localhost:5000", cfg.PublicRegistryURL)
-	assert.Equal(t, "charm-registry", cfg.S3Bucket)
-	assert.Equal(t, "us-east-1", cfg.S3Region)
-	assert.True(t, cfg.S3UsePathStyle)
-	assert.False(t, cfg.S3DisableTLS)
-	assert.Equal(t, "preferred_username", cfg.OIDCUsernameClaim)
-	assert.Equal(t, "name", cfg.OIDCDisplayNameClaim)
-	assert.Equal(t, "email", cfg.OIDCEmailClaim)
+	assert.True(t, cfg.EnableInsecureDevAuth)
+	assert.Equal(t, "charms", cfg.RegistryRepositoryRoot)
 	assert.Equal(t, int64(1<<20), cfg.MaxJSONBodyBytes)
 	assert.Equal(t, int64(64<<20), cfg.MaxUploadBytes)
 	assert.Equal(t, 10*time.Second, cfg.ServerReadHeaderTimeout)
@@ -45,45 +27,31 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadCustomValues(t *testing.T) {
-	t.Setenv("CHARM_REGISTRY_DATABASE_URL", "postgres://localhost/test")
 	t.Setenv("CHARM_REGISTRY_LISTEN", ":9090")
-	t.Setenv("CHARM_REGISTRY_S3_BUCKET", "custom-bucket")
-	t.Setenv("CHARM_REGISTRY_S3_REGION", "eu-west-1")
-	t.Setenv("CHARM_REGISTRY_S3_USE_PATH_STYLE", "false")
-	t.Setenv("CHARM_REGISTRY_S3_DISABLE_TLS", "true")
+	t.Setenv("CHARM_REGISTRY_ENABLE_INSECURE_DEV_AUTH", "false")
 	t.Setenv("CHARM_REGISTRY_MAX_JSON_BODY_BYTES", "2048")
 	t.Setenv("CHARM_REGISTRY_MAX_UPLOAD_BYTES", "1024")
 	t.Setenv("CHARM_REGISTRY_SERVER_READ_TIMEOUT", "5s")
 
-	cfg, err := Load()
+	cfg := Load()
 
-	require.NoError(t, err)
 	assert.Equal(t, ":9090", cfg.ListenAddress)
-	assert.Equal(t, "custom-bucket", cfg.S3Bucket)
-	assert.Equal(t, "eu-west-1", cfg.S3Region)
-	assert.False(t, cfg.S3UsePathStyle)
-	assert.True(t, cfg.S3DisableTLS)
+	assert.False(t, cfg.EnableInsecureDevAuth)
 	assert.Equal(t, int64(2048), cfg.MaxJSONBodyBytes)
 	assert.Equal(t, int64(1024), cfg.MaxUploadBytes)
 	assert.Equal(t, 5*time.Second, cfg.ServerReadTimeout)
 }
 
 func TestLoadTrimsTrailingSlashes(t *testing.T) {
-	t.Setenv("CHARM_REGISTRY_DATABASE_URL", "postgres://localhost/test")
 	t.Setenv("CHARM_REGISTRY_PUBLIC_API_URL", "https://api.example.com/")
 	t.Setenv("CHARM_REGISTRY_PUBLIC_STORAGE_URL", "https://storage.example.com/")
 	t.Setenv("CHARM_REGISTRY_PUBLIC_REGISTRY_URL", "https://oci.example.com/")
-	t.Setenv("CHARM_REGISTRY_S3_ENDPOINT", "https://s3.example.com/")
-	t.Setenv("CHARM_REGISTRY_OIDC_ISSUER_URL", "https://auth.example.com/")
 
-	cfg, err := Load()
+	cfg := Load()
 
-	require.NoError(t, err)
 	assert.Equal(t, "https://api.example.com", cfg.PublicAPIURL)
 	assert.Equal(t, "https://storage.example.com", cfg.PublicStorageURL)
 	assert.Equal(t, "https://oci.example.com", cfg.PublicRegistryURL)
-	assert.Equal(t, "https://s3.example.com", cfg.S3Endpoint)
-	assert.Equal(t, "https://auth.example.com", cfg.OIDCIssuerURL)
 }
 
 func TestEnvBoolInvalidFallsBack(t *testing.T) {
@@ -135,11 +103,9 @@ func TestEnvEmptyValueFallsBack(t *testing.T) {
 }
 
 func TestLoadTrimsRegistryRepositoryRoot(t *testing.T) {
-	t.Setenv("CHARM_REGISTRY_DATABASE_URL", "postgres://localhost/test")
 	t.Setenv("CHARM_REGISTRY_REGISTRY_REPOSITORY_ROOT", "/my-charms/")
 
-	cfg, err := Load()
+	cfg := Load()
 
-	require.NoError(t, err)
 	assert.Equal(t, "my-charms", cfg.RegistryRepositoryRoot)
 }

@@ -165,8 +165,7 @@ func TestIssueStoreTokenAndAuthenticate(t *testing.T) {
 	assert.Equal(t, identity.Account.ID, token.AccountID)
 
 	// Act: authenticate with the issued token
-	authenticator, err := auth.New(ctx, testConfig(), repository)
-	require.NoError(t, err)
+	authenticator := auth.New(testConfig(), repository)
 	req := httptest.NewRequest("GET", "/", nil)
 	req.Header.Set("Authorization", "Bearer "+raw)
 	claims, storeToken, err := authenticator.Authenticate(req)

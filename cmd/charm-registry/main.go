@@ -16,14 +16,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("load config: %v", err)
-	}
-	application, err := app.New(ctx, cfg)
-	if err != nil {
-		log.Fatalf("build application: %v", err)
-	}
+	cfg := config.Load()
+	application := app.New(cfg)
 
 	server := &http.Server{
 		Addr:              cfg.ListenAddress,

@@ -21,7 +21,7 @@ Report security issues privately to the maintainers with:
 - impact assessment
 - any suggested mitigation
 
-If you are deploying this service internally, treat registry credentials, OIDC secrets, database URLs, and object-store credentials as confidential and rotate them immediately after any suspected exposure.
+This service is a mock registry intended for local development and testing. It keeps all state in memory, enables insecure dev bearer tokens by default, and is not intended for production use. Still, treat any registry credentials you configure as confidential and rotate them after any suspected exposure.
 
 ## Supported posture
 
@@ -31,7 +31,7 @@ The repository currently includes:
 - `govulncheck` for dependency and standard-library vulnerability scanning
 - `gosec` for Go-focused static security analysis
 - explicit HTTP server timeouts and header/body limits
-- non-root container execution and a hardened compose profile for the application container
+- non-root container execution for the application image
 
 ## Hardening expectations
 

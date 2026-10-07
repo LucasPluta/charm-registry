@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc/v3/oidc"
-
 	"github.com/gschiano/charm-registry/internal/config"
 	"github.com/gschiano/charm-registry/internal/core"
 )
@@ -29,30 +27,16 @@ type Claims struct {
 }
 
 type Authenticator struct {
-	provider   *oidc.Provider
-	verifier   *oidc.IDTokenVerifier
 	config     config.Config
 	tokenStore TokenRepository
 }
 
-// New builds an [Authenticator] from the configured auth backends.
-//
-// The following errors may be returned:
-// - Errors from discovering the configured OIDC provider.
-func New(ctx context.Context, cfg config.Config, tokenStore TokenRepository) (*Authenticator, error) {
-	auth := &Authenticator{
+// New builds an [Authenticator] backed by dev credentials and store tokens.
+func New(cfg config.Config, tokenStore TokenRepository) *Authenticator {
+	return &Authenticator{
 		config:     cfg,
 		tokenStore: tokenStore,
 	}
-	if cfg.OIDCIssuerURL != "" && cfg.OIDCClientID != "" {
-		provider, err := oidc.NewProvider(ctx, cfg.OIDCIssuerURL)
-		if err != nil {
-			return nil, fmt.Errorf("cannot configure OIDC provider: %w", err)
-		}
-		auth.provider = provider
-		auth.verifier = provider.Verifier(&oidc.Config{ClientID: cfg.OIDCClientID})
-	}
-	return auth, nil
 }
 
 // Authenticate resolves the request identity from bearer credentials.
@@ -61,7 +45,6 @@ func New(ctx context.Context, cfg config.Config, tokenStore TokenRepository) (*A
 // - The authorization scheme is unsupported.
 // - The presented store token is expired or revoked.
 // - No valid credentials can be verified.
-// - OIDC token verification or claim decoding fails.
 func (a *Authenticator) Authenticate(r *http.Request) (Claims, *core.StoreToken, error) {
 	header := strings.TrimSpace(r.Header.Get("Authorization"))
 	if header == "" {
@@ -100,32 +83,7 @@ func (a *Authenticator) Authenticate(r *http.Request) (Claims, *core.StoreToken,
 		}, &storeToken, nil
 	}
 
-	if a.verifier == nil {
-		return Claims{}, nil, fmt.Errorf("cannot authenticate: no valid credentials found")
-	}
-	idToken, err := a.verifier.Verify(r.Context(), secret)
-	if err != nil {
-		return Claims{}, nil, fmt.Errorf("cannot verify OIDC token: %w", err)
-	}
-	var rawClaims map[string]any
-	if err := idToken.Claims(&rawClaims); err != nil {
-		return Claims{}, nil, fmt.Errorf("cannot decode OIDC claims: %w", err)
-	}
-
-	return Claims{
-		Subject: asString(rawClaims["sub"]),
-		Username: firstNonEmpty(
-			asString(rawClaims[a.config.OIDCUsernameClaim]),
-			asString(rawClaims["preferred_username"]),
-			asString(rawClaims["email"]),
-		),
-		DisplayName: firstNonEmpty(
-			asString(rawClaims[a.config.OIDCDisplayNameClaim]),
-			asString(rawClaims["name"]),
-			asString(rawClaims["preferred_username"]),
-		),
-		Email: firstNonEmpty(asString(rawClaims[a.config.OIDCEmailClaim]), asString(rawClaims["email"])),
-	}, nil, nil
+	return Claims{}, nil, fmt.Errorf("cannot authenticate: no valid credentials found")
 }
 
 // AuthenticateToken validates a raw store token string and returns the

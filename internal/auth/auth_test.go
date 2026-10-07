@@ -489,24 +489,10 @@ func TestAuthenticateTokenExpired(t *testing.T) {
 	assert.Contains(t, err.Error(), "revoked or expired")
 }
 
-func TestNewAuthenticatorWithoutOIDC(t *testing.T) {
+func TestNewAuthenticator(t *testing.T) {
 	t.Parallel()
 
-	a, err := New(context.Background(), config.Config{}, repo.NewMemory())
+	a := New(config.Config{}, repo.NewMemory())
 
-	require.NoError(t, err)
-	assert.Nil(t, a.provider)
-	assert.Nil(t, a.verifier)
-}
-
-func TestNewAuthenticatorWithInvalidOIDC(t *testing.T) {
-	t.Parallel()
-
-	_, err := New(context.Background(), config.Config{
-		OIDCIssuerURL: "https://invalid.issuer.example.test",
-		OIDCClientID:  "test-client",
-	}, repo.NewMemory())
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot configure OIDC provider")
+	assert.NotNil(t, a)
 }
