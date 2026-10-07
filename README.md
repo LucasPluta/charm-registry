@@ -27,7 +27,15 @@ export CHARMCRAFT_REGISTRY_URL=http://localhost:18080
 juju bootstrap localhost dev --config charmhub-url=http://localhost:18080
 ```
 
-For local-only auth, use an insecure development bearer token:
+For local-only auth, hand charmcraft a dev token directly instead of logging in:
+
+```bash
+export CHARMCRAFT_AUTH=$(printf '%s' 'dev:alice:alice' | base64 | tr -d '\n')
+```
+
+`charmcraft login` is not supported: charmcraft 4.4+ expects an Ubuntu SSO
+handshake at `POST /v1/tokens/usso`, which this mock does not implement. Raw HTTP
+callers can use the same token as a bearer credential:
 
 ```text
 Authorization: Bearer dev:alice:alice

@@ -12,6 +12,7 @@
 #   REGISTRY_HOST     address the Juju controller uses to reach the registry
 #   REGISTRY_PORT     port the registry listens on               (default 18080)
 #   CHARM_NAME        name to register                      (default mock-demo)
+#   CHARM_USER        dev identity to publish as                 (default alice)
 #   JUJU_CLOUD        cloud to bootstrap if no controller exists (default localhost)
 #   JUJU_CONTROLLER   controller name                       (default mock-registry)
 #   SKIP_JUJU=1       stop after the charmcraft phase
@@ -20,6 +21,7 @@ set -euo pipefail
 
 REGISTRY_PORT="${REGISTRY_PORT:-18080}"
 CHARM_NAME="${CHARM_NAME:-mock-demo}"
+CHARM_USER="${CHARM_USER:-alice}"
 JUJU_CLOUD="${JUJU_CLOUD:-localhost}"
 JUJU_CONTROLLER="${JUJU_CONTROLLER:-mock-registry}"
 JUJU_MODEL="demo"
@@ -162,9 +164,11 @@ export CHARMCRAFT_REGISTRY_URL="$REGISTRY_URL"
 
 cd "$PROJECT_DIR"
 
-say "Logging in to the mock registry with charmcraft"
-charmcraft login --export="${WORK_DIR}/credentials"
-CHARMCRAFT_AUTH="$(cat "${WORK_DIR}/credentials")"
+# charmcraft 4.4+ replaced the old bakery login with an Ubuntu SSO handshake
+# (POST /v1/tokens/usso), which this mock does not implement. Handing craft-store
+# a token directly via CHARMCRAFT_AUTH skips login entirely and works on 3.x and 4.x.
+say "Authenticating as ${CHARM_USER} with a dev token"
+CHARMCRAFT_AUTH="$(printf '%s' "dev:${CHARM_USER}:${CHARM_USER}" | base64 | tr -d '\n')"
 export CHARMCRAFT_AUTH
 charmcraft whoami
 
